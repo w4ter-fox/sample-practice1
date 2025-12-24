@@ -63,22 +63,22 @@ export default function Home() {
         </span>
       </p>
 
-      <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
-        {items.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="block rounded-2xl border p-6 hover:shadow-md transition"
-          >
-            <h2 className="text-xl font-semibold mb-2">
-              {item.title}
-            </h2>
-            <p className="text-gray-600">
-              {item.desc}
-            </p>
-          </Link>
-        ))}
-      </div>
+      <div className="flex flex-col gap-6">
+     {items.map((item) => (
+     <Link
+      key={item.href}
+      href={item.href}
+      className="block rounded-2xl border p-6 hover:shadow-md transition" >
+      <h2 className="text-xl font-semibold mb-2">
+        {item.title}
+      </h2>
+      <p className="text-gray-600">
+        {item.desc}
+      </p>
+    </Link>
+  ))}
+</div>
+
     </main>
   );
 }
