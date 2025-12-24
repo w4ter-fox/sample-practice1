@@ -49,6 +49,14 @@ const saveLog = (minutes: number, tag: string) => {
   localStorage.setItem("logs", JSON.stringify(logs));
 };
 
+/* =====================
+   アラーム
+===================== */
+const playAlarm = () => {
+  const audio = new Audio("/sounds/alarm.mp3");
+  audio.play();
+};
+
 export default function TimerPage() {
   /* =====================
      state
@@ -58,10 +66,9 @@ export default function TimerPage() {
   const [isRunning, setIsRunning] = useState(false);
 
   const [tags, setTags] = useState<Tag[]>([]);
-  const [selectedTag, setSelectedTag] = useState<string>("unassigned");
+  const [selectedTag, setSelectedTag] = useState("unassigned");
 
-
-  // ★ work開始時刻（ここが肝）
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [workStartedAt, setWorkStartedAt] =
     useState<number | null>(null);
 
@@ -75,28 +82,27 @@ export default function TimerPage() {
     m === "work" ? WORK_MINUTES * 60 : BREAK_MINUTES * 60;
 
   /* =====================
-     ① タグ読み込み（初回）
+     タグ読み込み
   ===================== */
   useEffect(() => {
-  const stored: Tag[] = JSON.parse(
-    localStorage.getItem("tags") || "[]"
-  );
+    const stored: Tag[] = JSON.parse(
+      localStorage.getItem("tags") || "[]"
+    );
 
-  // ★ 未設定タグを必ず先頭に入れる
-  const withUnassigned = [
-    UNASSIGNED_TAG,
-    ...stored.filter(t => t.id !== "unassigned"),
-  ];
+    const withUnassigned = [
+      UNASSIGNED_TAG,
+      ...stored.filter(t => t.id !== "unassigned"),
+    ];
 
-  setTags(withUnassigned);
-  setSelectedTag("unassigned");}, []);
-
+    setTags(withUnassigned);
+    setSelectedTag("unassigned");
+  }, []);
 
   /* =====================
-     ★ 実作業時間を保存
+     実作業時間を保存
   ===================== */
   const saveWorkLogIfNeeded = () => {
-    if (!workStartedAt || !selectedTag) return;
+    if (!workStartedAt) return;
 
     const workedMs = Date.now() - workStartedAt;
     const workedMinutes = Math.floor(workedMs / 1000 / 60);
@@ -109,17 +115,20 @@ export default function TimerPage() {
   };
 
   /* =====================
-     ② タイマー本体
+     タイマー本体
   ===================== */
   useEffect(() => {
     if (!isRunning) return;
 
     const timer = setInterval(() => {
-      setSecondsLeft((prev) => {
+      setSecondsLeft(prev => {
         if (prev <= 1) {
-          // work終了 → ログ保存
           if (mode === "work") {
             saveWorkLogIfNeeded();
+          }
+
+          if (soundEnabled) {
+            playAlarm();
           }
 
           const nm = nextMode(mode);
@@ -131,21 +140,21 @@ export default function TimerPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isRunning, mode]);
+  }, [isRunning, mode, soundEnabled]);
 
   /* =====================
      操作
   ===================== */
-  const start = () => {
-    if (mode === "work" && !workStartedAt) {
-      setWorkStartedAt(Date.now());
+  const toggleRun = () => {
+    if (isRunning) {
+      saveWorkLogIfNeeded();
+      setIsRunning(false);
+    } else {
+      if (mode === "work" && !workStartedAt) {
+        setWorkStartedAt(Date.now());
+      }
+      setIsRunning(true);
     }
-    setIsRunning(true);
-  };
-
-  const stop = () => {
-    saveWorkLogIfNeeded();
-    setIsRunning(false);
   };
 
   const reset = () => {
@@ -154,62 +163,60 @@ export default function TimerPage() {
     setSecondsLeft(modeToSeconds(mode));
   };
 
-  const switchMode = (newMode: Mode) => {
-    if (mode === "work") {saveLog(minutes, selectedTag ?? "unassigned");}
-
-    setIsRunning(false);
-    setMode(newMode);
-    setSecondsLeft(modeToSeconds(newMode));
-  };
-
   const minutes = Math.floor(secondsLeft / 60);
   const seconds = secondsLeft % 60;
 
   /* =====================
-     JSX
+     JSX（UI最適化）
   ===================== */
   return (
-    <main className="min-h-screen bg-gray-300 flex items-center justify-center p-6">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 space-y-6">
+    <main className="min-h-screen bg-gray-200 flex items-center justify-center px-4 py-6">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-4 space-y-5">
 
-        <h1 className="text-2xl font-bold text-center">
+        <h1 className="text-xl font-bold text-center">
           ⏱ Study Timer
         </h1>
 
-        {/* タグ */}
+        {/* サウンド */}
+        <div className="flex justify-center">
+          <button
+            onClick={() => setSoundEnabled(v => !v)}
+            className={`px-4 py-2 rounded-full text-sm border ${
+              soundEnabled
+                ? "bg-black text-white"
+                : "bg-gray-100"
+            }`}
+          >
+            🔔 音 {soundEnabled ? "ON" : "OFF"}
+          </button>
+        </div>
+
+        {/* タグ（横スクロール） */}
         <section>
-          <p className="text-sm font-semibold text-gray-600 mb-2">
+          <p className="text-xs font-semibold text-gray-500 mb-1">
             タグ
           </p>
-
-          {tags.length === 0 ? (
-            <p className="text-sm text-gray-400">
-              タグがありません
-            </p>
-          ) : (
-            <div className="flex gap-2 flex-wrap">
-              {tags.map((tag) => (
-                <button
-                  key={tag.id}
-                  onClick={() => setSelectedTag(tag.id)}
-                  className={`px-3 py-1 text-sm rounded-full border
-                    ${
-                      selectedTag === tag.id
-                        ? "bg-black text-white"
-                        : "bg-gray-100 hover:bg-gray-200"
-                    }`}
-                >
-                  {tag.name}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {tags.map(tag => (
+              <button
+                key={tag.id}
+                onClick={() => setSelectedTag(tag.id)}
+                className={`shrink-0 px-3 py-2 text-sm rounded-full border ${
+                  selectedTag === tag.id
+                    ? "bg-black text-white"
+                    : "bg-gray-100"
+                }`}
+              >
+                {tag.name}
+              </button>
+            ))}
+          </div>
         </section>
 
         {/* モード */}
         <div className="flex justify-center gap-2">
           <span
-            className={`px-3 py-1 text-sm rounded-full ${
+            className={`px-4 py-1 text-sm rounded-full ${
               mode === "work"
                 ? "bg-blue-600 text-white"
                 : "bg-gray-200"
@@ -218,7 +225,7 @@ export default function TimerPage() {
             作業
           </span>
           <span
-            className={`px-3 py-1 text-sm rounded-full ${
+            className={`px-4 py-1 text-sm rounded-full ${
               mode === "break"
                 ? "bg-green-600 text-white"
                 : "bg-gray-200"
@@ -228,28 +235,24 @@ export default function TimerPage() {
           </span>
         </div>
 
-        {/* 時間 */}
-        <div className="text-5xl font-mono text-center">
+        {/* 時間（大きく） */}
+        <div className="text-6xl font-mono text-center tracking-tight">
           {minutes}:{seconds.toString().padStart(2, "0")}
         </div>
 
-        {/* 操作 */}
+        {/* 操作ボタン */}
         <div className="flex gap-3">
           <button
-            className="flex-1 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-50"
-            onClick={start}
-            disabled={isRunning}
+            className={`flex-1 h-14 rounded-xl text-lg font-semibold text-white ${
+              isRunning ? "bg-gray-600" : "bg-blue-600"
+            }`}
+            onClick={toggleRun}
           >
-            Start
+            {isRunning ? "Stop" : "Start"}
           </button>
+
           <button
-            className="flex-1 py-2 rounded-lg bg-gray-300"
-            onClick={stop}
-          >
-            Stop
-          </button>
-          <button
-            className="flex-1 py-2 rounded-lg bg-red-500 text-white"
+            className="flex-1 h-14 rounded-xl bg-red-500 text-lg font-semibold text-white"
             onClick={reset}
           >
             Reset
