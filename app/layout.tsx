@@ -1,10 +1,25 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import Header from "./components/Header"; // ヘッダーを別ファイルに切り出します
 
+// PWA用の設定をサーバーサイドで定義
 export const metadata: Metadata = {
-  title: "Study Timer",
-  description: "Pomodoro & Study Log App",
+  title: "Focus",
+  description: "洗練された学習タイマー＆ログアプリ",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Focus",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2D5A78",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -14,17 +29,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body className="bg-gray-200">
-
-        <header className="p-4 border-b">
-          <Link href="/" className="font-semibold">
-            🏠 Home
-          </Link>
-        </header>
-
-        <main>{children}</main>
+      <body className="bg-[#F8FAFC] antialiased text-slate-800 font-sans">
+        {/* クライアントサイドでのパス判定が必要なヘッダーのみ別コンポーネント化 */}
+        <Header />
+        {children}
       </body>
     </html>
   );
 }
-
